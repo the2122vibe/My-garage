@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print — Anna Bessonova</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #FAF9F5;
+    --text: #212120;
+    --text-muted: #535352;
+    --blue: #063C8C;
+    --red: #E22015;
+    --green: #6C9859;
+    --shadow: rgba(0,0,0,0.15);
+    --transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    line-height: 1.3;
+    user-select: none;
+  }
+
+  /* ── NAV ── */
+  .nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 32px 120px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 20;
+  }
+
+  .nav a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 16px;
+    transition: color 0.2s;
+  }
+  .nav a:hover { color: var(--text); }
+  .nav-center { color: var(--text-muted); }
+
+  /* ── СЦЕНА ── */
+  .scene {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 120px 60px;
+  }
+
+  /* ── ЛЕЙАУТ: три колонки — название | карточка | год ── */
+  .layout {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+  }
+
+  /* Боковые подписи */
+  .side {
+    font-size: clamp(18px, 2.2vw, 32px);
+    font-weight: 700;
+    color: var(--accent);
+    transition: color var(--transition), opacity 0.3s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 140px;
+  }
+
+  .side-left { text-align: left; }
+  .side-right { text-align: right; }
+
+  /* ── КАРТОЧКА ── */
+  .card-wrap {
+    flex: 1;
+    max-width: 380px;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .card {
+    position: relative;
+    width: 100%;
+    /* соотношение ~9:16 как у вертикальных работ в референсе */
+    aspect-ratio: 9 / 14;
+    overflow: hidden;
+    border-radius: 2px;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.4s ease;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  }
+
+  .card:hover {
+    transform: scale(1.03) translateY(-6px) rotate(0.5deg);
+    box-shadow: 0 40px 80px rgba(0,0,0,0.22);
+  }
+
+  /* Стек изображений */
+  .card-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity var(--transition);
+  }
+
+  .card-img.active { opacity: 1; }
+
+  /* Стек — предыдущие/следующие карточки выглядывают сзади */
+  .card-stack {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .card-stack-item {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 2px;
+    overflow: hidden;
+    background: #ddd;
+    transition: transform var(--transition), opacity var(--transition);
+  }
+
+  .card-stack-item:nth-child(1) {
+    transform: translateY(-6px) scale(0.96);
+    opacity: 0.5;
+    z-index: -1;
+  }
+
+  .card-stack-item:nth-child(2) {
+    transform: translateY(-12px) scale(0.92);
+    opacity: 0.3;
+    z-index: -2;
+  }
+
+  .card-stack-item img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+
+
+
+  .dot.active {
+    opacity: 1;
+    background: var(--accent);
+    transform: scale(1.3);
+  }
+
+  /* ── BOTTOM BAR ── */
+  .bottom-bar {
+    position: fixed;
+    bottom: 32px;
+    left: 120px; right: 120px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 16px;
+    color: var(--text-muted);
+    z-index: 10;
+  }
+
+  /* Анимация смены */
+  .side { transition: color var(--transition), transform 0.3s ease; }
+  .side.changing { transform: translateY(8px); opacity: 0; }
+
+  /* ── HINT SCROLL ── */
+  .hint {
+    position: fixed;
+    bottom: 68px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: var(--text-muted);
+    opacity: 0.5;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+    animation: fadeHint 3s ease 1.5s forwards;
+  }
+
+  @keyframes fadeHint {
+    0%   { opacity: 0.5; }
+    100% { opacity: 0; }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .nav { padding: 24px 40px; }
+    .scene { padding: 72px 40px 60px; }
+    .bottom-bar { left: 40px; right: 40px; }
+    .side { font-size: 20px; min-width: 100px; }
+    .card-wrap { max-width: 300px; }
+  }
+
+  @media (max-width: 600px) {
+    .nav { padding: 20px 24px; }
+    .scene { padding: 68px 0 60px; }
+    .layout { gap: 16px; padding: 0 16px; }
+    .side { font-size: 16px; min-width: 80px; }
+    .card-wrap { max-width: 220px; }
+    .bottom-bar { left: 24px; right: 24px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="graphic.html">&lt; Back</a>
+  <span class="nav-center">Print</span>
+  <a href="web.html">Next &gt;</a>
+</nav>
+
+<div class="scene">
+  <div class="layout">
+
+    <div class="side side-left" id="sideTitle">[СПБГЭУ]</div>
+
+    <div class="card-wrap" id="cardWrap">
+      <!-- Стек (выглядывающие карточки позади) -->
+      <div class="card-stack" id="cardStack">
+        <div class="card-stack-item" id="stackItem1"><img src="" alt="" id="stackImg1"></div>
+        <div class="card-stack-item" id="stackItem2"><img src="" alt="" id="stackImg2"></div>
+      </div>
+
+      <!-- Основная карточка -->
+      <div class="card" id="mainCard">
+        <img class="card-img active" id="cardImg" src="" alt="">
+      </div>
+    </div>
+
+    <div class="side side-right" id="sideYear">[2026]</div>
+
+  </div>
+</div>
+
+<div class="dots" id="dots"></div>
+
+<div class="hint">scroll / swipe</div>
+
+<div class="bottom-bar">
+  <div>2026 Anna Bessonova</div>
+  <div id="clock"></div>
+</div>
+
+<script>
+  // ── ДАННЫЕ ПРОЕКТОВ ──
+  // src: путь к изображению
+  // title: название проекта
+  // year: год
+  // accent: акцентный цвет
+  const projects = [
+    {
+      src:    'img/1.png',   // замени на реальные пути
+      title:  '[СПБГЭУ]',
+      year:   '[2026]',
+      accent: '#063C8C',        // синий
+    },
+    {
+      src:    'img/2.png',
+      title:  '[MEDVEZHONOK]',
+      year:   '[2023]',
+      accent: '#E22015',        // красный
+    },
+    
+    {
+      src:    'img/4.png',
+      title:  '[СПБГЭУ]',
+      year:   '[2026]',
+      accent: '#6C9859',
+    },
+    {
+      src:    'img/5.png',
+      title:  '[MagicStix]',
+      year:   '[2023]',
+      accent: '#E22015',
+    },
+  ];
+
+  let current = 0;
+  let animating = false;
+
+  const cardImg   = document.getElementById('cardImg');
+  const sideTitle = document.getElementById('sideTitle');
+  const sideYear  = document.getElementById('sideYear');
+  const dotsEl    = document.getElementById('dots');
+  const stackImg1 = document.getElementById('stackImg1');
+  const stackImg2 = document.getElementById('stackImg2');
+
+  // Создаём точки
+  projects.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => goTo(i));
+    dotsEl.appendChild(d);
+  });
+
+  function updateDots() {
+    dotsEl.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+    });
+  }
+
+  function updateStack() {
+    const next1 = projects[(current + 1) % projects.length];
+    const next2 = projects[(current + 2) % projects.length];
+    stackImg1.src = next1.src;
+    stackImg2.src = next2.src;
+  }
+
+  function goTo(index) {
+    if (animating || index === current) return;
+    animating = true;
+
+    const p = projects[index];
+
+    // Анимируем боковые подписи
+    sideTitle.classList.add('changing');
+    sideYear.classList.add('changing');
+
+    // Меняем цвет акцента
+    document.documentElement.style.setProperty('--accent', p.accent);
+
+    setTimeout(() => {
+      // Меняем картинку и текст
+      cardImg.src   = p.src;
+      sideTitle.textContent = p.title;
+      sideYear.textContent  = p.year;
+
+      sideTitle.classList.remove('changing');
+      sideYear.classList.remove('changing');
+
+      current = index;
+      updateDots();
+      updateStack();
+      animating = false;
+    }, 300);
+  }
+
+  function next() { goTo((current + 1) % projects.length); }
+  function prev() { goTo((current - 1 + projects.length) % projects.length); }
+
+  // Инициализация
+  function init() {
+    const p = projects[0];
+    cardImg.src = p.src;
+    sideTitle.textContent = p.title;
+    sideYear.textContent  = p.year;
+    document.documentElement.style.setProperty('--accent', p.accent);
+    updateStack();
+  }
+
+  init();
+
+  // ── УПРАВЛЕНИЕ ──
+
+  // Колесо мыши
+  let wheelTimeout;
+  window.addEventListener('wheel', e => {
+    clearTimeout(wheelTimeout);
+    wheelTimeout = setTimeout(() => {
+      if (e.deltaY > 0) next(); else prev();
+    }, 50);
+  }, { passive: true });
+
+  // Клавиши
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') next();
+    if (e.key === 'ArrowUp'   || e.key === 'ArrowLeft')  prev();
+  });
+
+  // Свайп
+  let touchStartY = 0;
+  let touchStartX = 0;
+
+  window.addEventListener('touchstart', e => {
+    touchStartY = e.touches[0].clientY;
+    touchStartX = e.touches[0].clientX;
+  }, { passive: true });
+
+  window.addEventListener('touchend', e => {
+    const dy = touchStartY - e.changedTouches[0].clientY;
+    const dx = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      if (dx > 40) next(); else if (dx < -40) prev();
+    } else {
+      if (dy > 40) next(); else if (dy < -40) prev();
+    }
+  }, { passive: true });
+
+  // Клик по карточке — следующая
+  document.getElementById('mainCard').addEventListener('click', next);
+
+  // Часы
+  function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    document.getElementById('clock').textContent =
+      h + ':' + m + ' ' + (now.getHours() >= 12 ? 'PM' : 'AM');
+  }
+  updateClock();
+  setInterval(updateClock, 10000);
+</script>
+</body>
+</html>
